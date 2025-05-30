@@ -115,6 +115,71 @@ public class GTAVWebhookScript : Script
                     }
                     break;
                 }
+            case "changevehicle":
+{
+    // Delete player's current vehicle if they're in one
+    Ped player = Game.Player.Character;
+    if (player.IsInVehicle())
+    {
+        Vehicle currentVehicle = player.CurrentVehicle;
+        if (currentVehicle != null && currentVehicle.Exists())
+        {
+            currentVehicle.MarkAsNoLongerNeeded();
+            currentVehicle.Delete();
+        }
+    }
+
+    // Get all VehicleHash values
+    Array vehicleHashes = Enum.GetValues(typeof(VehicleHash));
+
+    // Filter to only spawn standard land vehicles (exclude boats, planes, etc.)
+    List<VehicleHash> validVehicles = new List<VehicleHash>();
+    foreach (VehicleHash hash in vehicleHashes)
+    {
+        Model model = new Model(hash);
+        if (model.IsValid && model.IsVehicle && !model.IsBoat && !model.IsPlane && !model.IsHelicopter)
+        {
+            validVehicles.Add(hash);
+        }
+    }
+
+    // Ensure we have vehicles to spawn
+    if (validVehicles.Count == 0)
+    {
+        Logger.Log("No valid vehicles available to spawn.");
+        break;
+    }
+
+    // Pick a random vehicle
+    Random rand = new Random();
+    VehicleHash randomVehicle = validVehicles[rand.Next(validVehicles.Count)];
+
+    // Spawn the vehicle in front of the player
+    Vector3 spawnPosition = player.Position + player.ForwardVector * 5f;
+    Model vehicleModel = new Model(randomVehicle);
+    vehicleModel.Request(500);
+
+    if (!vehicleModel.IsInCdImage || !vehicleModel.IsValid)
+    {
+        Logger.Log("Model is not valid.");
+        break;
+    }
+
+    Vehicle newVehicle = World.CreateVehicle(vehicleModel, spawnPosition);
+    if (newVehicle != null && newVehicle.Exists())
+    {
+        newVehicle.PlaceOnGround();
+        player.SetIntoVehicle(newVehicle, VehicleSeat.Driver);
+        Logger.Log("Spawned and entered random vehicle: " + randomVehicle);
+    }
+    else
+    {
+        Logger.Log("Failed to spawn vehicle.");
+    }
+
+    break;
+}
+
             case "remove_spawned_vehicles":
                 {
                     try
